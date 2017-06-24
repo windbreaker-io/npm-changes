@@ -1,27 +1,27 @@
 {
-  "name": "rss-watcher",
+  "name": "npm-watcher",
   "version": "1.0.0",
-  "description": "Watches package repo RSS feeds (e.g. PyPi and Maven) and pushes incoming changes to a RabbitMQ event queue",
+  "description": "Watches package repo npm feeds (e.g. PyPi and Maven) and pushes incoming changes to a RabbitMQ event queue",
   "main": "src/server.js",
   "scripts": {
     "test": "ava"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/windbreaker-io/rss-watcher.git"
+    "url": "git+https://github.com/windbreaker-io/npm-watcher.git"
   },
   "contributors": [
     {
-      "name": "Mabry Cervin",
-      "email": "mabry.cervin@gmail.com",
-      "url": "https://github.com/epitrochoid"
+      "name": "Maxwell Daum",
+      "email": "mdaum@cs.unc.edu",
+      "url": "https://github.com/mdaum"
     }
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/windbreaker-io/rss-watcher/issues"
+    "url": "https://github.com/windbreaker-io/npm-watcher/issues"
   },
-  "homepage": "https://github.com/windbreaker-io/rss-watcher#readme",
+  "homepage": "https://github.com/windbreaker-io/npm-watcher#readme",
   "devDependencies": {
     "ava": "^0.19.1",
     "eslint": "^4.0.0"
