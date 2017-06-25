@@ -19,11 +19,11 @@ config.load()
     try {
       const changes = await startNPMWatcher(channel, client)
       await setTimeout(checkWatcher(changes, client), 10000)
-      return setTimeout(run(), 10000)
+      return run()
     } catch (error) {
       logger.error(error)
     } finally {
-      setTimeout(run(), 10000)
+      run()
     }
   }
 })()
