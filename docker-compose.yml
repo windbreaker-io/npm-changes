@@ -1,0 +1,10 @@
+version: '3'
+services:
+  rabbitmq:
+    image: 'rafakato/rabbitmq-delayed-message-exchange'
+    ports:
+      - '5672:5672'
+  redis:
+    image: 'redis:3.2.1'
+    ports:
+      - '6379:6379'
