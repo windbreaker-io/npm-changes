@@ -1,6 +1,7 @@
-server.js will self invoke run after connecting to redis and rabbitmq.
-In this loop, it will pass in the rabbitmq channel and redis client into startNPMWatcher, which will get the latest stored changes set from
-redis, and then use changes-stream to get most current changes from registry, and then handle it (enqueue it w/ helper function).
-startNPMWatcher will return the changes set enqueued into rabbitmq and it is consumed by checkWatcher, which I think will then verify redis was updated? Not sure yet...
-
-
+server.js will invoke the event loop run() after connecting to redis and rabbitmq.
+in this loop, we call startNPMWatcher, which will spin up a changes-stream instance (using the latest redis entry)
+which will listen on registry changes, and will define the event listeners. This changes instance is sent back to run and is passed
+into checkWatcher.
+checkWatcher will see if the registry has been changed, and if so will destroy the current changes object, load the new registry state into redis and terminate, handing control back to run()
+, which will restart the whole process
+if checkWatcher does not notice an npm change, it will continually call itself until a change is identified.
