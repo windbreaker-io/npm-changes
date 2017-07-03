@@ -1,10 +1,14 @@
 {
   "name": "npm-watcher",
   "version": "1.0.0",
-  "description": "Watches package repo npm feeds (e.g. PyPi and Maven) and pushes incoming changes to a RabbitMQ event queue",
+  "description": "Watches package repo npm feeds and pushes incoming changes to a RabbitMQ event queue",
   "main": "src/server.js",
   "scripts": {
-    "test": "ava"
+    "docker:start": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "start": "node src/server.js",
+    "test": "npm run docker:start && sleep 10 && nyc ava test/unit test/integration; npm run docker:stop",
+    "test:ci": "nyc ava test/unit"
   },
   "repository": {
     "type": "git",
@@ -24,11 +28,24 @@
   "homepage": "https://github.com/windbreaker-io/npm-watcher#readme",
   "devDependencies": {
     "ava": "^0.19.1",
-    "eslint": "^4.0.0"
+    "eslint": "^4.0.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.3.0",
+    "eslint-plugin-node": "^5.0.0",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "nyc": "^11.0.2"
   },
   "dependencies": {
     "amqplib": "^0.5.1",
     "bluebird": "^3.5.0",
+    "changes-stream": "^2.2.0",
+    "fashion-model-defaults": "^1.0.1",
+    "normalize-registry-metadata": "^1.1.2",
+    "redis": "^2.7.1",
+    "request": "^2.81.0",
+    "request-promise": "^4.2.1",
+    "require-self-ref": "^2.0.1",
     "windbreaker-service-util": "github:windbreaker-io/windbreaker-service-util"
   }
 }
