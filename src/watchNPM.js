@@ -7,22 +7,13 @@ const clean = require('normalize-registry-metadata')
 
 // will hit up registry
 exports.checkWatcher = async function () { // TODO: fill the skeleton
-  request.get({
-    url: 'https://replicate.npmjs.com/registry',
-    json: true,
-    simple: true
-  }).then(function (response) {
-    console.log(response.body)
-  }).catch(function (error) {
-    throw new Error('request to npm registry failed with: ' + error)
-  })
+  console.log('todo')
 }
 
 // will publish to mq
 exports.handleChanges = async function () { // TODO
   console.log('todo')
 }
-
 
 exports.startNPMWatcher = async function () { // TODO
   console.log('todo')

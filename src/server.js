@@ -4,26 +4,44 @@ const redis = require('redis')
 const logger = require('~/src/logging').logger(module)
 const config = require('~/src/config')
 const queue = require('windbreaker-service-util/queue')
+const Promise = require('bluebird')
 config.load()
 
 ;(async () => {
+  let connection = null
+  let channel = null
+  let client = null
   const AmqUrl = config.getAmqUrl()
-  const connection = await queue.createConnection({
-    logger,
-    AmqUrl
-  })
-  const channel = await connection.createChannel()
-  await channel.assertQueue(config.getQueueName())
-  const client = redis.createClient(config.getRedisURL())
-  const run = async function () {
+  const setup = async function () {
     try {
-      const changes = await startNPMWatcher(channel, client)
-      await setTimeout(checkWatcher(changes, client), 10000)
-      return run()
+      connection = await queue.createConnection({
+        logger,
+        AmqUrl
+      })
+      channel = await connection.createChannel()
+      await channel.assertQueue(config.getQueueName())
+      client = redis.createClient(config.getRedisURL())
     } catch (error) {
-      logger.error(error)
-    } finally {
-      run()
+      logger.info(error)
+      logger.info('state: ' + {connection, channel, client})
+      logger.info('cleaning up and restarting setup')
+      client = null
+      if (channel) {
+        channel.close()
+        channel = null
+      }
+      if (connection) {
+        connection.close()
+        connection = null
+      }
+      await Promise.delay(1000).then(async function () {
+        await setup()
+      })
     }
   }
+  const watch = async function () {
+    console.log('todo')
+  }
+  await setup()
+  watch()
 })()
