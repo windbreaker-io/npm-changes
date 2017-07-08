@@ -16,14 +16,9 @@ module.exports = BaseConfig.extend({
       default: 'events'
     },
 
-    registryURL: {
+    registryUrl: {
       description: 'URL for watcher\'s registry',
       default: 'https://replicate.npmjs.com/registry'
-    },
-
-    redisURL: {
-      description: 'URL for redis',
-      default: 'redis://127.0.0.1:6379'
     }
   }
 })

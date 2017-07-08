@@ -1,59 +1,75 @@
 require('require-self-ref')
-const {checkWatcher, startNPMWatcher} = require('./watchNPM')
-const redis = require('redis')
-const logger = require('~/src/logging').logger(module)
 const config = require('~/src/config')
-const queue = require('windbreaker-service-util/queue')
-const Promise = require('bluebird')
 config.load()
+const logger = require('~/src/logging').logger(module)
+const {createProducer} = require('windbreaker-service-util/queue')
+const ChangesStream = require('changes-stream')
+const Promise = require('bluebird')
+
+const producerOptions = {
+  queueName: config.getQueueName()
+}
+
+const amqUrl = config.getAmqUrl()
+
+class UpdatesPublisher {
+  async setupProducer () {
+    try {
+      this.producer = await createProducer({logger, amqUrl, producerOptions})
+    } catch (error) {
+      logger.error(error)
+      logger.info('error creating producer, retrying ...')
+      await Promise.delay(500)
+      await this.setupProducer()
+    }
+  }
+
+  async setupChanges () {
+    try {
+      this.changes = new ChangesStream({
+        db: config.getRegistryUrl(),
+        since: 'now',
+        include_docs: true
+      })
+    } catch (error) {
+      logger.error(error)
+      logger.info('error creating ChangesStream, retrying ...')
+      await Promise.delay(500)
+      await this.setupChanges()
+    }
+  }
+
+  async start (setup) {
+    if (setup) {
+      await this.setupProducer()
+      await this.setupChanges()
+    }
+
+    this.producer.on('error', async (error) => {
+      logger.error(error)
+      logger.info('error emitted from producer, restarting it and changes stream')
+      this.changes.destroy()
+      await this.producer.stop()
+      await Promise.delay(1000)
+      await this.start(true)
+    })
+
+    this.changes.on('error', async (error) => {
+      logger.error(error)
+      logger.info('error emitted from changesStream, restarting it')
+      this.changes.destroy()
+      await this.setupChanges()
+      await Promise.delay(1000)
+      await this.start()
+    })
+
+    this.changes.on('data', async (data) => {
+      console.log('got data: ' + data)
+    })
+  }
+}
 
 ;(async () => {
-  let connection = null
-  let channel = null
-  let client = null
-  const AmqUrl = config.getAmqUrl()
-
-  const setup = async function () {
-    try {
-      connection = await queue.createConnection({
-        logger,
-        AmqUrl
-      })
-      channel = await connection.createChannel()
-      await channel.assertQueue(config.getQueueName())
-      client = redis.createClient(config.getRedisURL())
-      logger.info('setup successful')
-    } catch (error) {
-      logger.error(error)
-      logger.error('cleaning up and restarting setup')
-      client = null
-      if (channel) channel.close()
-      channel = null
-      if (connection) connection.close()
-      connection = null
-      await Promise.delay(1000).then(async function () {
-        await setup()
-      })
-    }
-  }
-
-  const watch = async function () {
-    let changes = null
-    const registryURL = config.getRegistryURL()
-    console.log(registryURL)
-    try {
-      changes = await startNPMWatcher({channel, client, registryURL})
-      logger.info('got changes: ' + JSON.stringify(changes))
-    } catch (error) {
-      if (changes)changes.destroy()
-      changes = null
-      logger.error(error)
-      await Promise.delay(1000).then(async function () {
-        await watch()
-      })
-    }
-  }
-
-  await setup()
-  watch()
+  const updatesPub = new UpdatesPublisher()
+  await updatesPub.start(true)
 })()
