@@ -16,6 +16,7 @@ class UpdatesPublisher {
   async setupProducer () {
     try {
       this.producer = await createProducer({logger, amqUrl, producerOptions})
+      logger.info('producer successfully created')
     } catch (error) {
       logger.error(error)
       logger.info('error creating producer, retrying ...')
@@ -31,6 +32,7 @@ class UpdatesPublisher {
         since: 'now',
         include_docs: true
       })
+      logger.info('changes stream successfully created')
     } catch (error) {
       logger.error(error)
       logger.info('error creating ChangesStream, retrying ...')
@@ -64,7 +66,9 @@ class UpdatesPublisher {
     })
 
     this.changes.on('data', async (data) => {
-      console.log('got data: ' + data)
+      logger.info('changes detected')
+      await this.producer.sendMessage(data)
+      logger.info('successfully published changes')
     })
   }
 }
