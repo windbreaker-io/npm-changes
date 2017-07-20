@@ -40,11 +40,14 @@
     "amqplib": "^0.5.1",
     "bluebird": "^3.5.0",
     "changes-stream": "^2.2.0",
+    "events": "^1.1.1",
     "fashion-model-defaults": "^1.0.1",
     "normalize-registry-metadata": "^1.1.2",
+    "proxyquire": "^1.8.0",
     "request": "^2.81.0",
     "request-promise": "^4.2.1",
     "require-self-ref": "^2.0.1",
+    "sinon": "^2.3.7",
     "windbreaker-service-util": "github:windbreaker-io/windbreaker-service-util"
   }
 }

@@ -8,7 +8,6 @@ let logger = null
 let registryUrl = null
 
 class UpdatesPublisher {
-
   configure (_producerOptions, _amqUrl, _registryUrl, _logger) {
     producerOptions = _producerOptions
     amqUrl = _amqUrl
@@ -29,19 +28,12 @@ class UpdatesPublisher {
   }
 
   async setupChanges () {
-    try {
-      this.changes = new ChangesStream({
-        db: registryUrl,
-        since: 'now',
-        include_docs: true
-      })
-      logger.info('changes stream successfully created')
-    } catch (error) {
-      logger.error(error)
-      logger.info('error creating ChangesStream, retrying ...')
-      await Promise.delay(500)
-      await this.setupChanges()
-    }
+    this.changes = new ChangesStream({
+      db: registryUrl,
+      since: 'now',
+      include_docs: true
+    })
+    logger.info('changes stream successfully created')
   }
 
   async start (setup) {
@@ -71,6 +63,7 @@ class UpdatesPublisher {
     this.changes.on('data', async (data) => {
       logger.info('changes detected')
       await this.producer.sendMessage(data)
+      logger.info('data: ' + JSON.stringify(data))
       logger.info('successfully published changes')
     })
   }
