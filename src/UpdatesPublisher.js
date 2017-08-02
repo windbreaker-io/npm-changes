@@ -67,6 +67,12 @@ class UpdatesPublisher {
       logger.info('successfully published changes')
     })
   }
+
+  async stop () {
+    this.changes.destroy()
+    await this.producer.stop()
+    logger.info('stopping UpdatesPublisher')
+  }
 }
 
 module.exports = new UpdatesPublisher()

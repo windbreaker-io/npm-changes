@@ -98,4 +98,20 @@ test.serial('#start', async (t) => {
   t.true(producerSendMessageSpy.calledWith({}))
 })
 
+test.serial('#stop', async (t) => {
+  const {producerOptions, sandbox} = t.context
+  const {publisher} = makeProducerAndStubs(sandbox)
+  await publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+  publisher.producer = new MockProducer()
+  publisher.changes = new MockChangesStream()
+  const producerStopSpy = sandbox.spy(publisher.producer, 'stop')
+  const changesDestroySpy = sandbox.spy(publisher.changes, 'destroy')
+  publisher.start()
+  t.true(producerStopSpy.notCalled)
+  t.true(changesDestroySpy.notCalled)
+  await publisher.stop()
+  t.true(producerStopSpy.calledOnce)
+  t.true(changesDestroySpy.calledOnce)
+})
+
 // for changes stream....create a mock for it...which extends event emitter..and then emit desired events to control flow
