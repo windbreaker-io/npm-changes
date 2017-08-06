@@ -26,10 +26,13 @@ test.beforeEach('setup mock channel and connections', (t) => {
   }
 
   const sandbox = sinon.sandbox.create()
+  const {publisher, createProducerStub} = makeProducerAndStubs(sandbox)
 
   t.context = {
     producerOptions,
-    sandbox
+    sandbox,
+    publisher,
+    createProducerStub
   }
 })
 
@@ -40,18 +43,16 @@ test.afterEach('clean up', (t) => {
 })
 
 test.serial('#setupProducer', async (t) => {
-  const {producerOptions, sandbox} = t.context
-  const {createProducerStub, publisher} = makeProducerAndStubs(sandbox)
-  await publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+  const {producerOptions, createProducerStub, publisher} = t.context
+  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
   createProducerStub.onFirstCall().returns(Promise.reject(new Error('expected rejection')))
   createProducerStub.onSecondCall().returns(Promise.resolve())
   await publisher.setupProducer()
   t.true(createProducerStub.calledTwice)
 })
 test.serial('#setupChanges', async (t) => {
-  const {producerOptions, sandbox} = t.context
-  const {publisher} = makeProducerAndStubs(sandbox)
-  await publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+  const {producerOptions, sandbox, publisher} = t.context
+  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
   const consoleSpy = sandbox.spy(console, 'info')
   await publisher.setupChanges()
   t.true(consoleSpy.calledWith('changes stream successfully created'))
@@ -59,9 +60,8 @@ test.serial('#setupChanges', async (t) => {
 })
 test.serial('#start', async (t) => {
   // setup all mocks and context
-  const {producerOptions, sandbox} = t.context
-  const {publisher} = makeProducerAndStubs(sandbox)
-  await publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+  const {producerOptions, sandbox, publisher} = t.context
+  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
   publisher.producer = new MockProducer()
   publisher.changes = new MockChangesStream()
   // stubbing creation methods
@@ -99,9 +99,8 @@ test.serial('#start', async (t) => {
 })
 
 test.serial('#stop', async (t) => {
-  const {producerOptions, sandbox} = t.context
-  const {publisher} = makeProducerAndStubs(sandbox)
-  await publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+  const {producerOptions, sandbox, publisher} = t.context
+  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
   publisher.producer = new MockProducer()
   publisher.changes = new MockChangesStream()
   const producerStopSpy = sandbox.spy(publisher.producer, 'stop')
@@ -113,5 +112,3 @@ test.serial('#stop', async (t) => {
   t.true(producerStopSpy.calledOnce)
   t.true(changesDestroySpy.calledOnce)
 })
-
-// for changes stream....create a mock for it...which extends event emitter..and then emit desired events to control flow
