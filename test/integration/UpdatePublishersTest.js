@@ -4,13 +4,14 @@ const sinon = require('sinon')
 const Promise = require('bluebird')
 const config = require('~/src/config')
 const {createConsumer} = require('windbreaker-service-util/queue')
+const updatesPub = require('~/src/UpdatesPublisher')
 config.load()
+const producerOptions = {
+  queueName: 'test-queue'
+}
+updatesPub.configure(producerOptions, config.getAmqUrl(), 'www.notasite.fake', console)
 
 test.beforeEach('setup env', (t) => {
-  const producerOptions = {
-    queueName: 'test-queue'
-  }
-
   const consumerOptions = {
     queueName: 'test-queue'
   }
@@ -18,7 +19,6 @@ test.beforeEach('setup env', (t) => {
   const sandbox = sinon.sandbox.create()
 
   t.context = {
-    producerOptions,
     consumerOptions,
     sandbox
   }
@@ -30,12 +30,10 @@ test.afterEach('clean up', (t) => {
 })
 
 test.serial('Will successfully detect changes and publish to rabbitmq', async (t) => {
-  const {producerOptions, consumerOptions, sandbox} = t.context
-  const updatesPub = require('~/src/UpdatesPublisher')
+  const {consumerOptions, sandbox} = t.context
   const amqURL = config.getAmqUrl()
   const spy = sandbox.spy()
-  await createConsumer({console, amqURL, onMessage: spy, consumerOptions})
-  updatesPub.configure(producerOptions, config.getAmqUrl(), 'www.notasite.fake', console)
+  const consumer = await createConsumer({console, amqURL, onMessage: spy, consumerOptions})
   updatesPub.start(true)
   await Promise.delay(100).then(() => {
     updatesPub.changes.emit('data', {data: 'something cool'})
@@ -45,5 +43,6 @@ test.serial('Will successfully detect changes and publish to rabbitmq', async (t
     const message = spy.firstCall.args[0]
     t.deepEqual(message.data, {data: 'something cool', type: undefined}, 'received expected data')
   })
+  await consumer.stop()
   await updatesPub.stop()
 })
