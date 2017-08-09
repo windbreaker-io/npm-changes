@@ -5,6 +5,7 @@ const proxyquire = require('proxyquire')
 const MockProducer = require('~/test/mocks/mockProducer')
 const MockChangesStream = require('~/test/mocks/mockChangesStream')
 const Promise = require('bluebird')
+const uuid = require('uuid')
 proxyquire.noPreserveCache()
 
 function makeProducerAndStubs (sandbox) {
@@ -21,8 +22,9 @@ function makeProducerAndStubs (sandbox) {
 }
 
 test.beforeEach('setup mock channel and connections', (t) => {
+  const queueName = `queue-${uuid.v4()}`
   const producerOptions = {
-    queueName: 'test-queue'
+    queueName: queueName
   }
 
   const sandbox = sinon.sandbox.create()

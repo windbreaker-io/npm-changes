@@ -5,15 +5,17 @@ const Promise = require('bluebird')
 const config = require('~/src/config')
 const {createConsumer} = require('windbreaker-service-util/queue')
 const updatesPub = require('~/src/UpdatesPublisher')
+const uuid = require('uuid')
 config.load()
-const producerOptions = {
-  queueName: 'test-queue'
-}
-updatesPub.configure(producerOptions, config.getAmqUrl(), 'www.notasite.fake', console)
 
 test.beforeEach('setup env', (t) => {
+  const queueName = `queue-${uuid.v4()}`
+  const producerOptions = {
+    queueName: queueName
+  }
+  updatesPub.configure(producerOptions, config.getAmqUrl(), 'www.notasite.fake', console)
   const consumerOptions = {
-    queueName: 'test-queue'
+    queueName: producerOptions.queueName
   }
 
   const sandbox = sinon.sandbox.create()
