@@ -8,19 +8,6 @@ const Promise = require('bluebird')
 const uuid = require('uuid')
 proxyquire.noPreserveCache()
 
-function makeProducerAndStubs (sandbox) {
-  const createProducerStub = sandbox.stub()
-  const publisher = proxyquire('~/src/UpdatesPublisher', {
-    'windbreaker-service-util/queue': {
-      createProducer: createProducerStub
-    }
-  })
-  return {
-    createProducerStub: createProducerStub,
-    publisher: publisher
-  }
-}
-
 test.beforeEach('setup mock channel and connections', (t) => {
   const queueName = `queue-${uuid.v4()}`
   const producerOptions = {
@@ -28,42 +15,50 @@ test.beforeEach('setup mock channel and connections', (t) => {
   }
 
   const sandbox = sinon.sandbox.create()
-  const {publisher, createProducerStub} = makeProducerAndStubs(sandbox)
+
+  const createProducerStub = sandbox.stub()
+  const UpdatesPublisher = proxyquire('~/src/UpdatesPublisher', {
+    'windbreaker-service-util/queue': {
+      createProducer: createProducerStub
+    }
+  })
+
+  const publisher = new UpdatesPublisher({
+    producerOptions,
+    amqUrl: 'http://unhappypath.sad',
+    registryUrl: 'http://unhappierpath',
+    logger: console
+  })
 
   t.context = {
-    producerOptions,
     sandbox,
     publisher,
     createProducerStub
   }
 })
 
-test.afterEach('clean up', (t) => {
+test.afterEach('clean up', async (t) => {
   const { sandbox } = t.context
-
   sandbox.restore()
 })
 
-test.serial('#setupProducer', async (t) => {
-  const {producerOptions, createProducerStub, publisher} = t.context
-  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+test('#setupProducer', async (t) => {
+  const {createProducerStub, publisher} = t.context
   createProducerStub.onFirstCall().returns(Promise.reject(new Error('expected rejection')))
   createProducerStub.onSecondCall().returns(Promise.resolve())
   await publisher.setupProducer()
   t.true(createProducerStub.calledTwice)
 })
-test.serial('#setupChanges', async (t) => {
-  const {producerOptions, sandbox, publisher} = t.context
-  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+test('#setupChanges', async (t) => {
+  const {sandbox, publisher} = t.context
   const consoleSpy = sandbox.spy(console, 'info')
   await publisher.setupChanges()
   t.true(consoleSpy.calledWith('changes stream successfully created'))
   publisher.changes.destroy()
 })
-test.serial('#start', async (t) => {
+test('#start', async (t) => {
   // setup all mocks and context
-  const {producerOptions, sandbox, publisher} = t.context
-  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+  const {sandbox, publisher} = t.context
   publisher.producer = new MockProducer()
   publisher.changes = new MockChangesStream()
   // stubbing creation methods
@@ -98,11 +93,11 @@ test.serial('#start', async (t) => {
   publisher.changes.emitData()
   await Promise.delay(100)
   t.true(producerSendMessageSpy.calledWith({}))
+  await publisher.stop()
 })
 
-test.serial('#stop', async (t) => {
-  const {producerOptions, sandbox, publisher} = t.context
-  publisher.configure(producerOptions, 'http://unhappypath.sad', 'http://unhappierpath.sad', console)
+test('#stop', async (t) => {
+  const {sandbox, publisher} = t.context
   publisher.producer = new MockProducer()
   publisher.changes = new MockChangesStream()
   const producerStopSpy = sandbox.spy(publisher.producer, 'stop')
