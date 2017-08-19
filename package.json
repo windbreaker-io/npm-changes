@@ -7,7 +7,9 @@
     "docker:start": "docker-compose up -d",
     "docker:stop": "docker-compose down",
     "start": "node src/server.js",
-    "test": "npm run docker:start && sleep 10 && nyc ava test/unit/*.js && sleep 1 && nyc ava test/integration/*.js && sleep 1 && npm run docker:stop",
+    "test": "npm run docker:start && sleep 10 && nyc ava test/unit/*.js test/integration/*.js && sleep 1 && npm run docker:stop",
+    "test:unit": "npm run docker:start && sleep 10 && nyc ava test/unit/*.js && sleep 1 && npm run docker:stop",
+    "test:integration": "npm run docker:start && sleep 10 && nyc ava test/integration/*.js && sleep 1 && npm run docker:stop",
     "lint": "eslint ."
   },
   "repository": {

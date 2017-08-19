@@ -40,113 +40,133 @@ test.beforeEach('setup mock channel and connections', (t) => {
 test.afterEach('clean up', async (t) => {
   const { sandbox, publisher } = t.context
   sandbox.restore()
-  if (publisher.producer === undefined) {
-    publisher.producer = new MockProducer()
-  }
-  if (publisher.changes === undefined) {
-    publisher.changes = new MockChangesStream()
-  }
   await publisher.stop()
 })
 
 test('#setupProducer will retry on error', async (t) => {
-  const {createProducerStub, publisher} = t.context
+  const {createProducerStub, publisher, sandbox} = t.context
   createProducerStub.onFirstCall().returns(Promise.reject(new Error('expected rejection')))
   createProducerStub.onSecondCall().returns(Promise.resolve())
+
   await publisher.setupProducer()
-  t.true(createProducerStub.calledTwice)
+  sandbox.assert.calledTwice(createProducerStub)
+  t.pass()
 })
 
 test('#setupChanges will retry on error', async (t) => {
   const {sandbox, publisher} = t.context
   const consoleSpy = sandbox.spy(console, 'info')
+
   await publisher.setupChanges()
-  t.true(consoleSpy.calledWith('changes stream successfully created'))
+  sandbox.assert.calledWith(consoleSpy, 'changes stream successfully created')
+  t.pass()
 })
 
 test('#start: when producer fails, producer and changes will restart', async (t) => {
   // setup all mocks and context
   const {sandbox, publisher} = t.context
-  publisher.producer = new MockProducer()
-  publisher.changes = new MockChangesStream()
+  publisher._producer = new MockProducer()
+  publisher._changes = new MockChangesStream()
+
   // stubbing creation methods
   const setupProducerStub = sandbox.stub(publisher, 'setupProducer')
   const setupChangesStub = sandbox.stub(publisher, 'setupChanges')
   setupProducerStub.resolves()
   setupChangesStub.resolves()
+
   // spying mocks' methods
-  const producerStopSpy = sandbox.spy(publisher.producer, 'stop')
-  const changesDestroySpy = sandbox.spy(publisher.changes, 'destroy')
+  const producerStopSpy = sandbox.spy(publisher._producer, 'stop')
+  const changesDestroySpy = sandbox.spy(publisher._changes, 'destroy')
+
   // launch the publisher event loop
   publisher.start()
-  t.true(setupProducerStub.notCalled)
-  t.true(setupChangesStub.notCalled)
+
+  sandbox.assert.notCalled(setupChangesStub)
+  sandbox.assert.notCalled(setupProducerStub)
+
   // producer fails
-  publisher.producer.emitError()
+  publisher._producer.emitError()
   await Promise.delay(1100)
-  t.true(producerStopSpy.calledOnce)
-  t.true(changesDestroySpy.calledOnce)
-  t.true(setupChangesStub.calledOnce)
-  t.true(setupProducerStub.calledOnce)
+
+  sandbox.assert.calledOnce(producerStopSpy)
+  sandbox.assert.calledOnce(changesDestroySpy)
+  sandbox.assert.calledOnce(setupChangesStub)
+  sandbox.assert.calledOnce(setupProducerStub)
+  t.pass()
 })
 
 test('#start: when changes fails, it restarts, producer does not', async (t) => {
   // setup all mocks and context
   const {sandbox, publisher} = t.context
-  publisher.producer = new MockProducer()
-  publisher.changes = new MockChangesStream()
+  publisher._producer = new MockProducer()
+  publisher._changes = new MockChangesStream()
+
   // stubbing creation methods
   const setupProducerStub = sandbox.stub(publisher, 'setupProducer')
   const setupChangesStub = sandbox.stub(publisher, 'setupChanges')
   setupProducerStub.resolves()
   setupChangesStub.resolves()
+
   // spying mocks' methods
-  const producerStopSpy = sandbox.spy(publisher.producer, 'stop')
-  const changesDestroySpy = sandbox.spy(publisher.changes, 'destroy')
+  const producerStopSpy = sandbox.spy(publisher._producer, 'stop')
+  const changesDestroySpy = sandbox.spy(publisher._changes, 'destroy')
+
   // launch the publisher event loop
   publisher.start()
-  t.true(setupProducerStub.notCalled)
-  t.true(setupChangesStub.notCalled)
+
+  sandbox.assert.notCalled(setupProducerStub)
+  sandbox.assert.notCalled(setupChangesStub)
+
   // changes fails
-  publisher.changes.emitError()
+  publisher._changes.emitError()
   await Promise.delay(1100)
-  t.true(producerStopSpy.notCalled)
-  t.true(setupProducerStub.notCalled)
-  t.true(changesDestroySpy.calledOnce)
-  t.true(setupChangesStub.calledOnce)
+
+  sandbox.assert.notCalled(producerStopSpy)
+  sandbox.assert.notCalled(setupProducerStub)
+  sandbox.assert.calledOnce(changesDestroySpy)
+  sandbox.assert.calledOnce(setupChangesStub)
+  t.pass()
 })
 
 test('#start: will successfully detect and publish changes', async (t) => {
   // setup all mocks and context
   const {sandbox, publisher} = t.context
-  publisher.producer = new MockProducer()
-  publisher.changes = new MockChangesStream()
+  publisher._producer = new MockProducer()
+  publisher._changes = new MockChangesStream()
+
   // stubbing creation methods
   const setupProducerStub = sandbox.stub(publisher, 'setupProducer')
   const setupChangesStub = sandbox.stub(publisher, 'setupChanges')
   setupProducerStub.resolves()
   setupChangesStub.resolves()
+
   // launch the publisher event loop
   publisher.start()
-  t.true(setupProducerStub.notCalled)
-  t.true(setupChangesStub.notCalled)
+  sandbox.assert.notCalled(setupProducerStub)
+  sandbox.assert.notCalled(setupChangesStub)
+
   // changes detected
-  const producerSendMessageSpy = sandbox.spy(publisher.producer, 'sendMessage')
-  publisher.changes.emitData()
+  const producerSendMessageSpy = sandbox.spy(publisher._producer, 'sendMessage')
+
+  publisher._changes.emitData()
   await Promise.delay(100)
-  t.true(producerSendMessageSpy.calledWith({}))
+  sandbox.assert.calledWith(producerSendMessageSpy, {})
+  t.pass()
 })
 
 test('#stop', async (t) => {
   const {sandbox, publisher} = t.context
-  publisher.producer = new MockProducer()
-  publisher.changes = new MockChangesStream()
-  const producerStopSpy = sandbox.spy(publisher.producer, 'stop')
-  const changesDestroySpy = sandbox.spy(publisher.changes, 'destroy')
+  publisher._producer = new MockProducer()
+  publisher._changes = new MockChangesStream()
+  const producerStopSpy = sandbox.spy(publisher._producer, 'stop')
+  const changesDestroySpy = sandbox.spy(publisher._changes, 'destroy')
+
   publisher.start()
-  t.true(producerStopSpy.notCalled)
-  t.true(changesDestroySpy.notCalled)
+  sandbox.assert.notCalled(producerStopSpy)
+  sandbox.assert.notCalled(changesDestroySpy)
+
   await publisher.stop()
-  t.true(producerStopSpy.calledOnce)
-  t.true(changesDestroySpy.calledOnce)
+  sandbox.assert.calledOnce(producerStopSpy)
+  sandbox.assert.calledOnce(changesDestroySpy)
+  t.pass()
 })

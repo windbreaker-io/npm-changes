@@ -17,7 +17,7 @@ module.exports = BaseConfig.extend({
     },
 
     registryUrl: {
-      description: 'URL for watcher\'s registry',
+      description: 'URL for npm registry',
       default: 'https://replicate.npmjs.com/registry'
     }
   }

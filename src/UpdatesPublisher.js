@@ -2,31 +2,36 @@ const {createProducer} = require('windbreaker-service-util/queue')
 const ChangesStream = require('changes-stream')
 const Promise = require('bluebird')
 
+// Wait times in ms
+const setupProducerWaitTime = 500
+const producerStopWaitTime = 1000
+const setupChangesWaitTime = 1000
+
 class UpdatesPublisher {
   constructor (options) {
-    this.producerOptions = options.producerOptions
-    this.amqUrl = options.amqUrl
-    this.registryUrl = options.registryUrl
+    this._producerOptions = options.producerOptions
+    this._amqUrl = options.amqUrl
+    this._registryUrl = options.registryUrl
     this.logger = options.logger
   }
 
   async setupProducer () {
-    const {logger, amqUrl, producerOptions} = this
+    const {logger, _amqUrl, _producerOptions} = this
     try {
-      this.producer = await createProducer({logger, amqUrl, producerOptions})
+      this._producer = await createProducer({logger, amqUrl: _amqUrl, producerOptions: _producerOptions})
       logger.info('producer successfully created')
     } catch (error) {
-      logger.error(error)
-      logger.info('error creating producer, retrying ...')
-      await Promise.delay(500)
+      logger.error('Error creating producer', error)
+      logger.info('Attempting to reinitialize queue producer')
+      await Promise.delay(setupProducerWaitTime)
       await this.setupProducer()
     }
   }
 
   async setupChanges () {
-    const {registryUrl, logger} = this
-    this.changes = new ChangesStream({
-      db: registryUrl,
+    const {_registryUrl, logger} = this
+    this._changes = new ChangesStream({
+      db: _registryUrl,
       since: 'now',
       include_docs: true
     })
@@ -39,27 +44,27 @@ class UpdatesPublisher {
       await this.setupChanges()
     }
     const {logger} = this
-    this.producer.on('error', async (error) => {
-      logger.error(error)
-      logger.info('error emitted from producer, restarting it and changes stream')
-      this.changes.destroy()
-      await this.producer.stop()
-      await Promise.delay(1000)
+    this._producer.on('error', async (error) => {
+      logger.error('Error received from producer', error)
+      logger.info('Restarting producer and changes stream')
+      this._changes.destroy()
+      await this._producer.stop()
+      await Promise.delay(producerStopWaitTime)
       await this.start(true)
     })
 
-    this.changes.on('error', async (error) => {
-      logger.error(error)
-      logger.info('error emitted from changesStream, restarting it')
-      this.changes.destroy()
+    this._changes.on('error', async (error) => {
+      logger.error('Error received from changes stream', error)
+      logger.info('Restarting changes stream')
+      this._changes.destroy()
       await this.setupChanges()
-      await Promise.delay(1000)
+      await Promise.delay(setupChangesWaitTime)
       await this.start()
     })
 
-    this.changes.on('data', async (data) => {
+    this._changes.on('data', async (data) => {
       logger.info('changes detected')
-      await this.producer.sendMessage(data)
+      await this._producer.sendMessage(data)
       logger.info('data: ' + JSON.stringify(data))
       logger.info('successfully published changes')
     })
@@ -67,8 +72,12 @@ class UpdatesPublisher {
 
   async stop () {
     const {logger} = this
-    this.changes.destroy()
-    await this.producer.stop()
+    if (this._changes) {
+      this._changes.destroy()
+    }
+    if (this._producer) {
+      await this._producer.stop()
+    }
     logger.info('stopping UpdatesPublisher')
   }
 }
