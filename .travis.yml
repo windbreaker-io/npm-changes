@@ -4,4 +4,4 @@ node_js:
 services:
   - docker
   - rabbitmq
-script: npm test:ci
+script: npm test
