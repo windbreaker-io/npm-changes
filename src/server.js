@@ -1,10 +1,11 @@
 require('require-self-ref')
-const config = require('~/src/config')
-config.load()
-const logger = require('~/src/logging').logger(module)
-const UpdatesPublisher = require('./UpdatesPublisher')
 
 ;(async () => {
+  const config = require('~/src/config')
+  await config.load()
+  const logger = require('~/src/logging').logger(module)
+  const UpdatesPublisher = require('./UpdatesPublisher')
+
   const producerOptions = {
     queueName: config.getQueueName()
   }
