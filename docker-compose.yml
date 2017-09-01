@@ -1,5 +1,21 @@
 version: '3'
 services:
+  npm-watcher:
+    build: .
+    volumes:
+      - .:/usr/npm-watcher
+      - /usr/npm-watcher/node_modules
+    depends_on:
+      - rabbitmq
+    command: npm start
+  test:
+    build: .
+    volumes:
+      - .:/usr/npm-watcher
+      - /usr/npm-watcher/node_modules
+    depends_on:
+      - rabbitmq
+    command: npm run test:docker
   rabbitmq:
     image: 'rabbitmq:3.6.10-alpine'
     ports:

@@ -8,7 +8,7 @@ module.exports = BaseConfig.extend({
   properties: {
     amqUrl: {
       description: 'The url used to access activeMQ',
-      default: 'amqp://127.0.0.1:5672'
+      default: 'amqp://rabbitmq'
     },
 
     queueName: {

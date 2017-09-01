@@ -4,12 +4,15 @@
   "description": "Watches package repo npm feeds and pushes incoming changes to a RabbitMQ event queue",
   "main": "src/server.js",
   "scripts": {
-    "docker:start": "docker-compose up -d",
+    "docker:start": "docker-compose run npm-watcher",
     "docker:stop": "docker-compose down",
     "start": "node src/server.js",
-    "test": "npm run docker:start && sleep 10 && nyc ava test/unit/*.js test/integration/*.js && sleep 1 && npm run docker:stop",
-    "test:unit": "npm run docker:start && sleep 10 && nyc ava test/unit/*.js && sleep 1 && npm run docker:stop",
-    "test:integration": "npm run docker:start && sleep 10 && nyc ava test/integration/*.js && sleep 1 && npm run docker:stop",
+    "pretest": "npm run lint",
+    "test": "docker-compose run test",
+    "posttest": "npm run docker:stop",
+    "test:unit": "nyc ava test/unit",
+    "test:integration": "docker-compose run test nyc ava test/integration; npm run docker:stop",
+    "test:docker": "nyc ava test/unit test/integration --verbose",
     "lint": "eslint ."
   },
   "repository": {
