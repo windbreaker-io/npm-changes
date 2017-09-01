@@ -6,7 +6,10 @@ const config = require('~/src/config')
 const {createConsumer} = require('windbreaker-service-util/queue')
 const UpdatesPublisher = require('~/src/UpdatesPublisher')
 const uuid = require('uuid')
-config.load()
+
+test.before(async () => {
+  return config.load()
+})
 
 test.beforeEach('setup env', (t) => {
   const queueName = `queue-${uuid.v4()}`
