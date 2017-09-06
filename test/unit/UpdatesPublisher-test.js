@@ -2,11 +2,24 @@ require('require-self-ref')
 const test = require('ava')
 const sinon = require('sinon')
 const proxyquire = require('proxyquire')
-const MockProducer = require('~/test/mocks/mockProducer')
-const MockChangesStream = require('~/test/mocks/mockChangesStream')
+proxyquire.noPreserveCache()
+
+const MockProducer = require('~/test/mocks/MockProducer')
+const MockChangesStream = require('~/test/mocks/MockChangesStream')
 const Promise = require('bluebird')
 const uuid = require('uuid')
-proxyquire.noPreserveCache()
+
+const DependencyUpdate = require('windbreaker-service-util/models/events/dependency/DependencyUpdate')
+const DependencyType = require('windbreaker-service-util/models/events/dependency/DependencyType')
+
+const { NPM: NPM_TYPE } = DependencyType
+
+const Event = require('windbreaker-service-util/models/events/Event')
+const EventType = require('windbreaker-service-util/models/events/EventType')
+
+
+const waitForEvent = require('windbreaker-service-util/test/util/waitForEvent')
+
 
 test.beforeEach('setup mock channel and connections', (t) => {
   const queueName = `queue-${uuid.v4()}`
@@ -44,7 +57,7 @@ test.afterEach('clean up', async (t) => {
 })
 
 test('#setupProducer will retry on error', async (t) => {
-  const {createProducerStub, publisher, sandbox} = t.context
+  const { createProducerStub, publisher, sandbox } = t.context
   createProducerStub.onFirstCall().returns(Promise.reject(new Error('expected rejection')))
   createProducerStub.onSecondCall().returns(Promise.resolve())
 
@@ -54,7 +67,7 @@ test('#setupProducer will retry on error', async (t) => {
 })
 
 test('#setupChanges will retry on error', async (t) => {
-  const {sandbox, publisher} = t.context
+  const { sandbox, publisher } = t.context
   const consoleSpy = sandbox.spy(console, 'info')
 
   await publisher.setupChanges()
@@ -64,7 +77,7 @@ test('#setupChanges will retry on error', async (t) => {
 
 test('#start: when producer fails, producer and changes will restart', async (t) => {
   // setup all mocks and context
-  const {sandbox, publisher} = t.context
+  const { sandbox, publisher } = t.context
   publisher._producer = new MockProducer()
   publisher._changes = new MockChangesStream()
 
@@ -85,7 +98,7 @@ test('#start: when producer fails, producer and changes will restart', async (t)
   sandbox.assert.notCalled(setupProducerStub)
 
   // producer fails
-  publisher._producer.emitError()
+  publisher._producer.emit('error', new Error('Producer error'))
   await Promise.delay(1100)
 
   sandbox.assert.calledOnce(producerStopSpy)
@@ -118,7 +131,7 @@ test('#start: when changes fails, it restarts, producer does not', async (t) => 
   sandbox.assert.notCalled(setupChangesStub)
 
   // changes fails
-  publisher._changes.emitError()
+  publisher._changes.emit('error', new Error('ChangesStream error'))
   await Promise.delay(1100)
 
   sandbox.assert.notCalled(producerStopSpy)
@@ -129,14 +142,19 @@ test('#start: when changes fails, it restarts, producer does not', async (t) => 
 })
 
 test('#start: will successfully detect and publish changes', async (t) => {
-  // setup all mocks and context
-  const {sandbox, publisher} = t.context
-  publisher._producer = new MockProducer()
-  publisher._changes = new MockChangesStream()
+  t.plan(0)
 
-  // stubbing creation methods
+  // setup all mocks and context
+  const { sandbox, publisher } = t.context
+  const producer = publisher._producer = new MockProducer()
+  const changesStream = publisher._changes = new MockChangesStream()
+
+  const producerSendMessageSpy = sandbox.spy(producer, 'sendMessage')
+
+  // stubout creation methods
   const setupProducerStub = sandbox.stub(publisher, 'setupProducer')
   const setupChangesStub = sandbox.stub(publisher, 'setupChanges')
+
   setupProducerStub.resolves()
   setupChangesStub.resolves()
 
@@ -145,13 +163,28 @@ test('#start: will successfully detect and publish changes', async (t) => {
   sandbox.assert.notCalled(setupProducerStub)
   sandbox.assert.notCalled(setupChangesStub)
 
-  // changes detected
-  const producerSendMessageSpy = sandbox.spy(publisher._producer, 'sendMessage')
+  const name = 'some-dep'
+  const version = '1.0.0'
+  const doc = {
+    name,
+    'dist-tags': {
+      latest: version
+    }
+  }
 
-  publisher._changes.emitData()
-  await Promise.delay(100)
-  sandbox.assert.calledWith(producerSendMessageSpy, {})
-  t.pass()
+  // changes detected
+  changesStream.emit('data', { doc })
+
+  sandbox.assert.calledWith(producerSendMessageSpy, sandbox.match((event) => {
+    const type = event.getType()
+
+    const dependencyUpdate = event.getData()
+
+    return event.getType() === EventType.DEPENDENCY_UPDATE &&
+      dependencyUpdate.getName() === name &&
+      dependencyUpdate.getVersion() === version &&
+      dependencyUpdate.getType() === NPM_TYPE
+  }))
 })
 
 test('#stop', async (t) => {

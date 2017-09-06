@@ -7,6 +7,8 @@ services:
       - /usr/npm-watcher/node_modules
     depends_on:
       - rabbitmq
+    environment:
+      SERVICE_ENVIRONMENT: docker
     command: npm start
   test:
     build: .
@@ -15,8 +17,10 @@ services:
       - /usr/npm-watcher/node_modules
     depends_on:
       - rabbitmq
+    environment:
+      SERVICE_ENVIRONMENT: docker
     command: npm run test:docker
   rabbitmq:
     image: 'rabbitmq:3.6.10-alpine'
     ports:
-      - '5672:5672'
+      - '5672'
