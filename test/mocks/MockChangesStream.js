@@ -1,4 +1,3 @@
-require('require-self-ref')
 const EventEmitter = require('events')
 const Promise = require('bluebird')
 

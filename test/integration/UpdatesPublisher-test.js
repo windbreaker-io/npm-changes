@@ -1,12 +1,8 @@
-require('require-self-ref')
 const test = require('ava')
 const sinon = require('sinon')
-const Promise = require('bluebird')
 const config = require('~/src/config')
 const { createConsumer } = require('windbreaker-service-util/queue')
 const uuid = require('uuid')
-
-const amqplib = require('amqplib')
 
 const proxyquire = require('proxyquire')
 proxyquire.noPreserveCache()
@@ -16,11 +12,8 @@ const MockChangesStream = require('~/test/mocks/MockChangesStream')
 const waitForEvent = require('windbreaker-service-util/test/util/waitForEvent')
 
 const DependencyType = require('windbreaker-service-util/models/events/dependency/DependencyType')
-const DependencyUpdate = require('windbreaker-service-util/models/events/dependency/DependencyUpdate')
-
 const { NPM: NPM_TYPE } = DependencyType
 
-const Event = require('windbreaker-service-util/models/events/Event')
 const EventType = require('windbreaker-service-util/models/events/EventType')
 
 const messageParser = require('windbreaker-service-util/queue/util/message-parser')
@@ -80,7 +73,7 @@ test.afterEach('clean up', async (t) => {
 })
 
 test('Will successfully detect changes and publish to dependency update to queue', async (t) => {
-  const { consumer, sandbox, updatesPublisher, amqUrl } = t.context
+  const { consumer, updatesPublisher } = t.context
 
   await updatesPublisher.start(true)
 

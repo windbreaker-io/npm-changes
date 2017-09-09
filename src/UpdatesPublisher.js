@@ -1,5 +1,7 @@
-const Promise = require('bluebird')
 const ChangesStream = require('changes-stream')
+const EventEmitter = require('events')
+
+const Promise = require('bluebird')
 
 const { createProducer } = require('windbreaker-service-util/queue')
 
@@ -12,12 +14,12 @@ const EventType = require('windbreaker-service-util/models/events/EventType')
 const { NPM: NPM_TYPE } = DependencyType
 
 // Wait times in ms
-const setupProducerWaitTime = 500
-const producerStopWaitTime = 1000
-const setupChangesWaitTime = 1000
+const PRODUCER_SETUP_DELAY = 1000
+const CHANGES_STREAM_SETUP_DELAY = 1000
 
-class UpdatesPublisher {
+class UpdatesPublisher extends EventEmitter {
   constructor (options) {
+    super()
     this._producerOptions = options.producerOptions
     this._amqUrl = options.amqUrl
     this._registryUrl = options.registryUrl
@@ -38,9 +40,11 @@ class UpdatesPublisher {
     } catch (error) {
       logger.error('Error creating producer', error)
       logger.info('Attempting to reinitialize queue producer')
-      await Promise.delay(setupProducerWaitTime)
+      await Promise.delay(PRODUCER_SETUP_DELAY)
       await this.setupProducer()
     }
+
+    this.emit('producer-created', this._producer)
   }
 
   async setupChanges () {
@@ -51,6 +55,8 @@ class UpdatesPublisher {
       include_docs: true
     })
     logger.info('changes stream successfully created')
+
+    this.emit('changes-stream-created', this._changes)
   }
 
   async start (setup) {
@@ -66,21 +72,23 @@ class UpdatesPublisher {
     } = this
 
     producer.on('error', async (error) => {
-      logger.error('Error received from producer', error)
+      this.emit('error', new Error('Error received from prodcuer', error))
       logger.info('Restarting producer and changes stream')
+
       this._changes.destroy()
       await this._producer.stop()
-      await Promise.delay(producerStopWaitTime)
-      await this.start(true)
+      await Promise.delay(PRODUCER_SETUP_DELAY)
+      this.start(true)
     })
 
     changesStream.on('error', async (error) => {
-      logger.error('Error received from changes stream', error)
+      this.emit('error', new Error('Error received from changes stream', error))
       logger.info('Restarting changes stream')
+
       this._changes.destroy()
       await this.setupChanges()
-      await Promise.delay(setupChangesWaitTime)
-      await this.start()
+      await Promise.delay(CHANGES_STREAM_SETUP_DELAY)
+      this.start()
     })
 
     changesStream.on('data', async ({ doc: npmDoc }) => {
@@ -93,11 +101,18 @@ class UpdatesPublisher {
 
       logger.info(`Received update for package: ${name}, version: ${version}`)
 
+      const errors = []
+
       const update = DependencyUpdate.wrap({
         name,
         version,
         type: NPM_TYPE
-      })
+      }, errors)
+
+      if (errors.length) {
+        const error = new Error(`Unable wrap npm dependency date Errors: "${errors.join(', ')}"`)
+        return this.emit('error', error)
+      }
 
       const message = new Event({
         type: EventType.DEPENDENCY_UPDATE,
@@ -110,14 +125,14 @@ class UpdatesPublisher {
   }
 
   async stop () {
-    const {logger} = this
+    const { logger } = this
     if (this._changes) {
       this._changes.destroy()
     }
     if (this._producer) {
       await this._producer.stop()
     }
-    logger.info('stopping UpdatesPublisher')
+    logger.info('Stopping UpdatesPublisher')
   }
 }
 

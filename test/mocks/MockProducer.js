@@ -1,8 +1,7 @@
-require('require-self-ref')
 const EventEmitter = require('events')
 const Promise = require('bluebird')
 
-module.exports = class mockProducer extends EventEmitter {
+module.exports = class MockProducer extends EventEmitter {
   emitError () {
     this.emit('error', new Error('mockProducer error'))
   }
