@@ -55,5 +55,9 @@
     "sinon": "^2.3.7",
     "uuid": "^3.1.0",
     "windbreaker-service-util": "github:windbreaker-io/windbreaker-service-util"
+  },
+
+  "ava": {
+    "require": [ "require-self-ref" ]
   }
 }

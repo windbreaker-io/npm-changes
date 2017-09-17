@@ -11,11 +11,19 @@ require('require-self-ref')
   }
   const amqUrl = config.getAmqUrl()
   const registryUrl = config.getRegistryUrl()
-  const updatesPub = new UpdatesPublisher({
+  const updatesPublisher = new UpdatesPublisher({
     producerOptions,
     amqUrl,
     registryUrl,
     logger
   })
-  await updatesPub.start(true)
+
+  updatesPublisher.on('error', (error) => {
+    logger.error(error)
+
+    // TODO: consider tearing down after encountering
+    // receiving too many errors
+  })
+
+  await updatesPublisher.start(true)
 })()
